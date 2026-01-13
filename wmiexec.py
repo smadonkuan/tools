@@ -1,21 +1,19 @@
 from __future__ import division
 from __future__ import print_function
-
-import warnings
-# 1. 屏蔽 Impacket 版本警告
-warnings.filterwarnings("ignore")
-
-# 2. 強制設定編碼為繁體中文，防止亂碼與 Decoding Error
-import sys
-# 這裡直接強制修改全局 CODEC 預設值
-CODEC = 'cp950' 
-
-# 3. 屏蔽 stderr 錯誤輸出（這會殺掉所有 Impacket 內建的 [-] 提示）
-sys.stderr = open(os.devnull, 'w')
-# -----------------------
-
 import sys
 import os
+import warnings
+
+# 1. 核心修正：在所有 import 發生前，徹底封鎖警告與錯誤輸出
+os.environ['PYTHONWARNINGS'] = 'ignore'
+warnings.filterwarnings("ignore")
+
+# 2. 開啟黑洞：暫時關閉 stderr，直到 import 完成
+actual_stderr = sys.stderr
+blackhole = open(os.devnull, 'w')
+sys.stderr = blackhole
+
+# 3. 現在才開始載入會噴廢話的模組
 import cmd
 import argparse
 import time
@@ -31,6 +29,13 @@ from impacket.dcerpc.v5.dcomrt import DCOMConnection, COMVERSION
 from impacket.dcerpc.v5.dcom import wmi
 from impacket.dcerpc.v5.dtypes import NULL
 from impacket.krb5.keytab import Keytab
+
+# 4. 載入完畢，恢復 stderr（這樣你自己的錯誤才能看到）
+sys.stderr = actual_stderr
+
+# 5. 強制設定編碼與靜音等級
+CODEC = 'cp950' 
+logging.getLogger("impacket").setLevel(logging.CRITICAL)
 
 OUTPUT_FILENAME = '__' + str(time.time())
 CODEC = sys.stdout.encoding
