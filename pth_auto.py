@@ -78,9 +78,16 @@ def main():
                 attack_command, 
                 check=True, 
                 capture_output=True, 
-                text=True
+                text=True,
+                errors='replace' 
             )
-            print(result.stdout)
+            if result.stdout:
+                # splitlines 會同時處理 \n, \r\n 等換行符號
+                for line in result.stdout.splitlines():
+                    clean_line = line.strip()
+                    if clean_line: 
+                        print(clean_line)
+
             print(f"[+] SUCCESS: Lateral movement to {target_ip} completed.")
 
         except subprocess.CalledProcessError as e:
@@ -99,15 +106,11 @@ def main():
     
             elif "status_object_name_not_found" in error_msg:
                 print("    - Reason: Admin share (ADMIN$) is disabled on the target.")
-
             elif e.returncode == 127:
                 print("    - Reason: Tool path error or Python environment issue.")
             else:
-                print(f"    - Raw Intercepted Error: {error_msg.strip()}")        
-        except FileNotFoundError:
-            print(f"FAILURE: '{tool_name}' disappeared during execution!")
-            print("Reason: Highly likely deleted by Real-Time Protection (AV/EDR).")
-
+                clean_error = error_msg.strip().splitlines()[:2]
+                print(f"    - Raw Intercepted Error: {' '.join(clean_error)}")
         except Exception as e:
             print(f"FAILURE: An unexpected error occurred: {e}")
 
