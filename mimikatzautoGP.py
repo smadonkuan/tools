@@ -60,7 +60,8 @@ def get_admin_credentials(filename):
 def run_command(target, creds, cmd_list):
     """ 利用 PsExec 進行 Pass-the-Hash 遠端執行 """
     identity = f"{creds['DOMAIN']}/{creds['USER']}@{target}"
-    full_cmd = [".\\psexec.exe", "-hashes", creds['HASH'], identity] + cmd_list
+    # 修改後的指令陣列
+    full_cmd = [".\\psexec.exe", "-s", "-accepteula", "-n", "10", "-hashes", creds['HASH'], identity] + cmd_list
     return subprocess.run(full_cmd, capture_output=True, text=True, check=False)
 
 def get_all_pcs(creds):
